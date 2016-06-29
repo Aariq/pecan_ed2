@@ -567,7 +567,7 @@ $ED_NL
    !                       3.  Hybrid Stepping (BDF2 implicit step for the canopy air and  !
    !                           leaf temp, forward Euler for else, under development).      !
    !---------------------------------------------------------------------------------------!
-   NL%INTEGRATION_SCHEME = 1
+   NL%INTEGRATION_SCHEME = 3
    !---------------------------------------------------------------------------------------!
    ! RK4_TOLERANCE -- This is the relative tolerance for Runge-Kutta or Heun's             !
    !                  integration.  Larger numbers will make runs go faster, at the        !
@@ -586,7 +586,7 @@ $ED_NL
    !                   2.  Similar to 1, but branches are treated as separate pools in the !
    !                       biophysics (thus doubling the number of prognostic variables).  !
    !---------------------------------------------------------------------------------------!
-   NL%IBRANCH_THERMO = 0
+   NL%IBRANCH_THERMO = 1
    !---------------------------------------------------------------------------------------!
    ! IPHYSIOL --  This variable will determine the functional form that will control how   !
    !              the various parameters will vary with temperature, and how the CO2       !
@@ -706,7 +706,7 @@ $ED_NL
    !              1.  Dietze (2008) model.  Cohorts have a finite radius, and cohorts are  !
    !                  stacked on the top of each other.                                    !
    !---------------------------------------------------------------------------------------!
-   NL%CROWN_MOD       = 1
+   NL%CROWN_MOD       = 0
    !---------------------------------------------------------------------------------------!
    !      The following variables control the canopy radiation solver.                     !
    !                                                                                       !
@@ -737,7 +737,7 @@ $ED_NL
    !                 lim -> 0.  Black hole (0 itself is unacceptable)                      !
    !                        1.  Homogeneously spread over the layer (i.e., no clumping)    !
    !---------------------------------------------------------------------------------------!
-   NL%ICANRAD        =      0
+   NL%ICANRAD        =      1
    NL%LTRANS_VIS     =  0.050
    NL%LTRANS_NIR     =  0.270
    NL%LREFLECT_VIS   =  0.150
@@ -781,20 +781,36 @@ $ED_NL
    !                         in negative carbon balance only when they run out of storage  !
    !                         and are still losing more carbon than gaining.                !
    !                                                                                       !
-   !  DDMORT_CONST   -- This constant (k) determines the relative contribution of light    !
+   !  CBR_SCHEME     -- This flag determines which carbon stress scheme is used:           !
+   !                    0 -- Single stress. CBR = cb/cb_mlmax                              !
+   !                         cb_mlmax is the carbon balance in full sun and no moisture    !
+   !                         limitation                                                    !
+   !                    1 -- Co-limitation from light and moisture                         !
+   !                         CBR_LIGHT = cb/cb_lightmax and CBR_MOIST = cb/cb_moistmax     !
+   !                         CBR_LIGHT and CBR_MOIST are then weighted according to        !
+   !                         DDMORT_CONST (below)                                          !
+   !                    2 -- Leibig Style, i.e. limitation from either light or moisture   !
+   !                         depending on which is lower at a given point in time          !
+   !                         CBR = cb/max(cb_lightmax, cb_moistmax)                        !
+   !                                                                                       !
+   !  DDMORT_CONST   -- CBR_Scheme = 1 only                                                !
+   !                    This constant (k) determines the relative contribution of light    !
    !                    and soil moisture to the density-dependent mortality rate.  Values !
    !                    range from 0 (soil moisture only) to 1 (light only).               !
    !                                                                                       !
    !                                    mort1                                              !
    !                  mu_DD = -------------------------                                    !
-   !                            1 + exp [ mort2 * cr ]                                     !
+   !                            1 + exp [ mort2 * CBR ]                                    !
    !                                                                                       !
-   !                                 CB                      CB                            !
-   !                  cr    = k ------------- + (1 - k) -------------                      !
-   !                             CB_lightmax             CB_watermax                       !
+   !                1         DDMORT_CONST         1 - DDMORT_CONST                        !
+   !           ------------ = ------------------ + ------------------                      !
+   !           CBR - CBR_SS   CBR_LIGHT - CBR_SS   CBR_MOIST - CBR_SS                      !
+   !                                                                                       ! 
    !---------------------------------------------------------------------------------------!
    NL%IDDMORT_SCHEME  = 0
    NL%DDMORT_CONST    = 0.8
+   NL%CBR_SCHEME      = 0
+   !---------------------------------------------------------------------------------------!
    !---------------------------------------------------------------------------------------!
    !     The following variables are factors that control photosynthesis and respiration.  !
    ! Notice that some of them are relative values whereas others are absolute.             !
@@ -1248,6 +1264,30 @@ $ED_NL
    NL%PATCH_KEEP = 0
    !---------------------------------------------------------------------------------------!
 
+   !---------------------------------------------------------------------------------------!
+   ! GROWTH_RESP_SCHEME -- This flag indicates how growth respiration fluxes are treated.  !
+   !                                                                                       !
+   !        0 - ED Default. Growth respiration is treated as tax on GPP, at pft-specific   !
+   !            rate given by growth_resp_factor. All growth respiration is treated as     !
+   !            aboveground wood -> canopy-airspace flux.                                  !
+   !        1 - Growth respiration is calculated as in 0, but split into fluxes entering   !
+   !            the CAS from leaf, sapwooda, sapwoodb, and root sources, proportionally to !
+   !            biomass. This does not affect carbon budget at all, it provides greater    !
+   !            within-ecosystem flux resolution.                                          !
+   !---------------------------------------------------------------------------------------!
+   NL%GROWTH_RESP_SCHEME = 0
+   !---------------------------------------------------------------------------------------!
+
+  !---------------------------------------------------------------------------------------!
+   ! STORAGE_RESP_SCHEME -- This flag controls how storage respiration fluxes are treated. !
+   !                                                                                       !
+   !        0 - ED Default. Storage resp. is aboveground wood -> canopy-airspace flux.     !
+   !        1 - Storage respiration is calculated as in 0, but split into fluxes entering  !
+   !            the CAS from leaf, sapwooda, sapwoodb, and root sources, proportionally to !
+   !            biomass.                                                                   !
+   !---------------------------------------------------------------------------------------!
+   NL%STORAGE_RESP_SCHEME = 0
+   !---------------------------------------------------------------------------------------!
 
    !---------------------------------------------------------------------------------------!
    ! IOPTINPT -- Optimization configuration. (Currently not used)                          !
